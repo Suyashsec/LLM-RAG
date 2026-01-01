@@ -1,0 +1,55 @@
+# policy.yaml - Migration Guardrails
+version: 1
+
+# ---------------------------------------------------------------------
+# 1. LABEL STRATEGY (CRITICAL FOR LOKI PERFORMANCE)
+# ---------------------------------------------------------------------
+# Loki indexes logs by "labels". If you create too many unique label
+# combinations (Cardinality), Loki will crash or become very slow.
+#
+# RULE: Only "low cardinality" fields (finite values) should be labels.
+# Everything else should be extracted fields or structured metadata.
+# ---------------------------------------------------------------------
+labels:
+  # ALLOWLIST: These fields are safe to promote to Loki Labels.
+  # They typically have < 100 unique values.
+  allowlist:
+    - app           # e.g., "frontend", "backend"
+    - env           # e.g., "prod", "staging"
+    - cluster       # e.g., "us-east-1"
+    - namespace     # e.g., "monitoring"
+    - host          # (Be careful if you have 10k+ hosts)
+    - sourcetype    # e.g., "access_combined"
+    - container_id  # Borderline, but often useful
+    - job
+    - level         # e.g., "INFO", "ERROR"
+
+  # DENYLIST: These must NEVER be labels. They have infinite unique values.
+  # If the LLM tries to make these labels, we will block it.
+  denylist:
+    - trace_id      # Unique per request (Billions of values)
+    - span_id       # Unique per span
+    - user_id       # High cardinality
+    - session_id    # Unique per session
+    - order_id      # Unique per transaction
+    - ip            # Too many unique IPs on the internet
+    - client_ip
+    - timestamp     # Never index time as a label
+    - message       # The raw log content
+
+# ---------------------------------------------------------------------
+# 2. MULTILINE DEFAULTS
+# ---------------------------------------------------------------------
+# If Splunk has 'LINE_BREAKER' but creates massive events,
+# we enforce limits to prevent Alloy from running out of memory.
+multiline:
+  max_wait_time: "3s"  # Wait this long for the next line before flushing
+  max_lines: 500       # If a stack trace is longer than this, cut it off
+
+# ---------------------------------------------------------------------
+# 3. TIMESTAMP DEFAULTS
+# ---------------------------------------------------------------------
+# If Splunk doesn't explicitly say where the time zone is, assume UTC.
+timestamp:
+  default_location: "UTC"
+  fallback_to_ingest_time: true # If parsing fails, use current time
