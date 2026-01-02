@@ -1,9 +1,9 @@
 Here is the content formatted as a clean, professional `README.md` file. I have included the Mermaid syntax for the architecture diagram so it renders correctly in Markdown viewers (like GitHub or Obsidian).
 
 ```markdown
-# Splunk to Grafana Alloy Migration Assistant
+ Splunk to Grafana Alloy Migration Assistant
 
-## 1. Project Overview
+ 1. Project Overview
 
 This tool is a local, AI-powered assistant designed to automate the conversion of Splunk configuration files (`props.conf`, `transforms.conf`, `inputs.conf`) into valid **Grafana Alloy (HCL)** configuration code.
 
