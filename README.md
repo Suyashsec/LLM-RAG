@@ -1,18 +1,22 @@
-# LLM-RAG
-Splunk to Grafana Alloy Migration Assistant
+Here is the content formatted as a clean, professional `README.md` file. I have included the Mermaid syntax for the architecture diagram so it renders correctly in Markdown viewers (like GitHub or Obsidian).
 
-1. Project Overview
+```markdown
+# Splunk to Grafana Alloy Migration Assistant
 
-This tool is a local, AI-powered assistant designed to automate the conversion of Splunk configuration files (props.conf, transforms.conf, inputs.conf) into valid Grafana Alloy (HCL) configuration code.
+## 1. Project Overview
 
-It uses a Hybrid Architecture:
+This tool is a local, AI-powered assistant designed to automate the conversion of Splunk configuration files (`props.conf`, `transforms.conf`, `inputs.conf`) into valid **Grafana Alloy (HCL)** configuration code.
 
-Deterministic Compiler (Python): Parses Splunk configs into a structured Intermediate Representation (IR) JSON. This handles critical logic like Line Breaking, Timestamps, and Policy enforcement strictly.
+It uses a **Hybrid Architecture**:
 
-Generative AI (LLM): Uses a local LLM (Qwen 2.5-Coder 7B) to translate the IR JSON into final Alloy syntax, augmented by a local RAG knowledge base.
+* **Deterministic Compiler (Python):** Parses Splunk configs into a structured Intermediate Representation (IR) JSON. This handles critical logic like Line Breaking, Timestamps, and Policy enforcement strictly.
+* **Generative AI (LLM):** Uses a local LLM (**Qwen 2.5-Coder 7B**) to translate the IR JSON into final Alloy syntax, augmented by a local RAG knowledge base.
 
-2. Architecture
+---
 
+## 2. Architecture
+
+```mermaid
 graph TD
     User[User (Streamlit UI)] -->|Inputs/Props/Transforms| Backend[Backend Orchestrator]
     Backend -->|Raw Configs| Compiler[Compiler (Python)]
@@ -24,91 +28,96 @@ graph TD
     LLM -->|Alloy Code| Validator[Alloy CLI Validator]
     Validator -->|Valid Code| User
 
+```
 
-Key Components
+### Key Components
 
-app.py: The Streamlit Frontend. Provides input boxes and a debug view for the compiled IR.
+* **`app.py` (The Frontend):** The Streamlit UI. Provides input boxes and a debug view for the compiled IR.
+* **`backend.py` (The Orchestrator):** Manages the workflow: *Compile -> Retrieve Context -> Prompt LLM -> Validate Code -> Retry*.
+* **`compiler.py` (The Logic Engine):** Parses Splunk files, applies regex cleaning (PCRE -> RE2), maps keys (e.g., `LINE_BREAKER` -> `multiline`), and enforces the Label Policy.
+* **`policy.yaml` (The Guardrails):** Defines allowed labels and default settings to prevent high-cardinality issues in Loki.
+* **`ingest.py` (The Knowledge Builder):** Ingests documentation from `docs/` into ChromaDB.
 
-backend.py: The Orchestrator. Manages the workflow: Compile -> Retrieve Context -> Prompt LLM -> Validate Code -> Retry.
+---
 
-compiler.py: The Logic Engine. Parses Splunk files, applies regex cleaning (PCRE -> RE2), maps keys (LINE_BREAKER -> multiline), and enforces the Label Policy.
+## 3. Installation Guide
 
-policy.yaml: The Guardrails. Defines allowed labels and default settings to prevent high-cardinality issues in Loki.
+### Prerequisites
 
-ingest.py: The Knowledge Builder. Ingests documentation from docs/ into ChromaDB.
+* **OS:** Linux or WSL2
+* **Python:** 3.10+
+* **Ollama:** Installed and running
+* **Grafana Alloy CLI:** Installed (required for validation step)
 
-3. Installation Guide
+### Step-by-Step Setup
 
-Prerequisites
+**1. Create Project & Virtual Environment**
 
-OS: Linux or WSL2
-
-Python: 3.10+
-
-Ollama: Installed and running
-
-Grafana Alloy CLI: Installed (for validation)
-
-Step-by-Step Setup
-
-Create Project & Venv
-
+```bash
 mkdir splunk-migration-tool
 cd splunk-migration-tool
 python3 -m venv venv
 source venv/bin/activate
 
+```
 
-Install Python Dependencies
+**2. Install Python Dependencies**
 
+```bash
 pip install streamlit ollama chromadb pyyaml
 
+```
 
-Setup Ollama Model
+**3. Setup Ollama Model**
 
+```bash
 ollama pull qwen2.5-coder:7b
 
+```
 
-Prepare Documentation
+**4. Prepare Documentation**
 
-Create a docs/ folder.
-
-Add alloy_reference.txt and splunk_to_alloy_map.txt (see Source Code section below).
-
-Run ingestion:
-
+* Create a `docs/` folder.
+* Add `alloy_reference.txt` and `splunk_to_alloy_map.txt` (see Source Code section below).
+* Run ingestion:
+```bash
 python3 ingest.py
 
+```
 
-Run the App
 
+
+**5. Run the App**
+
+```bash
 streamlit run app.py
 
+```
 
-4. Usage Guide
+---
 
-Mode 1: Splunk Migration (The Main Tab)
+## 4. Usage Guide
 
-Inputs: Paste your inputs.conf content (e.g., [monitor:///var/log/*.log]).
+### Mode 1: Splunk Migration (The Main Tab)
 
-Props: Paste props.conf (e.g., TIME_FORMAT, LINE_BREAKER).
+1. **Inputs:** Paste your `inputs.conf` content (e.g., `[monitor:///var/log/*.log]`).
+2. **Props:** Paste `props.conf` (e.g., `TIME_FORMAT`, `LINE_BREAKER`).
+3. **Transforms:** Paste `transforms.conf` (e.g., `DEST_KEY` logic).
+4. **Debug:** Click **"ℹ️ View Compiled IR"** to see how the Python compiler interpreted your rules.
+5. **Migrate:** Click the button. The tool will generate the code, validate it using `alloy fmt`, and auto-correct syntax errors.
 
-Transforms: Paste transforms.conf (e.g., DEST_KEY logic).
+### Mode 2: General Assistant
 
-Debug: Click "ℹ️ View Compiled IR" to see how the Python compiler interpreted your rules.
+* Select **"General Question"** to ask free-form questions (e.g., *"How does stage.drop work?"*).
+* Select **"Generate Alloy Code"** to generate code from a text prompt (e.g., *"Create a syslog listener on port 514"*).
 
-Migrate: Click the button. The tool will generate the code, validate it using alloy fmt, and auto-correct syntax errors.
+---
 
-Mode 2: General Assistant
+## 5. Source Code Repository
 
-Select "General Question" to ask free-form questions ("How does stage.drop work?").
+### 5.1 `policy.yaml` (Configuration)
 
-Select "Generate Alloy Code" to generate code from a text prompt ("Create a syslog listener on port 514").
-
-5. Source Code Repository
-
-5.1 policy.yaml (Configuration)
-
+```yaml
 version: 1
 labels:
   allowlist:
@@ -140,9 +149,11 @@ timestamp:
 rewrite:
   enable: true
 
+```
 
-5.2 compiler.py (Parsing Logic)
+### 5.2 `compiler.py` (Parsing Logic)
 
+```python
 import re
 import yaml
 import json
@@ -340,9 +351,11 @@ def compile_ir_json(props_text: str, transforms_text: str, inputs_text: str, pol
     result = CompiledIR(inputs=inputs_ir, processing_pipelines=pipelines_ir, global_warnings=[])
     return json.dumps(asdict(result), indent=2)
 
+```
 
-5.3 backend.py (Orchestration)
+### 5.3 `backend.py` (Orchestration)
 
+```python
 import ollama
 import subprocess
 import chromadb
@@ -362,7 +375,7 @@ def get_rag_context(query):
 
 def clean_code(text):
     if not text: return None
-    pattern = r"``" + r"`(?:\w+)?\s+(.*?)``" + r"`"
+    pattern = r"```(?:\w+)?\s+(.*?)```"
     match = re.search(pattern, text, re.DOTALL)
     if match: return match.group(1).strip()
     if "loki.process" in text or "loki.source" in text:
@@ -426,9 +439,11 @@ def run_agent(props, transforms, inputs, general_input, log_func, chat_mode=Fals
         prompt = f"Fix this syntax error in the Alloy code:\n{error}\n\nCode:\n{code}\n\nReturn ONLY the fixed code block."
     return f"# Failed.\n# Last Error: {error}\n# Last Output:\n{code}"
 
+```
 
-5.4 app.py (UI)
+### 5.4 `app.py` (UI)
 
+```python
 import streamlit as st
 from backend import run_agent
 from compiler import compile_ir_json 
@@ -478,9 +493,11 @@ with tab2:
                 st.subheader("Result (.alloy)")
                 st.code(result, language="hcl")
 
+```
 
-5.5 ingest.py (Docs Ingestion)
+### 5.5 `ingest.py` (Docs Ingestion)
 
+```python
 import chromadb
 import os
 import glob
@@ -519,3 +536,11 @@ if documents:
         collection.add(documents=documents[i:end], ids=ids[i:end])
     print("✅ Knowledge Base Successfully Updated!")
 else: print("⚠️ No valid text found in docs folder.")
+
+```
+
+```
+
+Would you like me to make any adjustments to this documentation?
+
+```
